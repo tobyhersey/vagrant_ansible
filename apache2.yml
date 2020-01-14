@@ -1,0 +1,59 @@
+- hosts: all
+  become: yes
+  vars:
+    animaltype1: cats
+    animaltype2: bats
+  tasks:
+    - name: Install apache httpd  (state=present is optional)
+      apt:
+        name: apache2
+        state: latest
+      notify:
+        - restart apache2
+
+    - name: create index.html file
+      file:
+        path: /var/www/html/index.html
+        state: touch
+
+    - debug:
+        var: animaltype1
+
+    - name: add animal type web content
+      lineinfile:
+        line: "{{ animaltype1  }}"
+        path: /var/www/html/index.html
+      register: task_debug
+      notify:
+        - restart apache2
+
+    - debug:
+        msg: "{{ task_debug }}"
+
+    - name: " rm file"
+      shell: rm  /var/www/html/index.html
+      when: ansible_hostname == 'mastermigration'
+      ignore_errors: yes
+
+  handlers:
+    - name: Attempt to restart apache2
+      service:
+        name: apache2
+        state: restarted
+      listen: "restart apache2"
+
+    - name: "bats on master"
+      shell: echo "{{ animaltype2 }}" >  /var/www/html/index.html
+      when: ansible_hostname == 'mastermigration'
+
+    - name: add hostname
+      lineinfile:
+        line: 'Host name is "{{ ansible_hostname }}" '
+        path: /var/www/html/index.html
+      notify:
+        - restart apache2
+
+    - name: apaches started
+      service:
+        name: apache2
+        state: started
